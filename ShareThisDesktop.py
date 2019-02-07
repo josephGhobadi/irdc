@@ -5,6 +5,7 @@ import os
 import signal
 import screeninfo
 from time import sleep
+from SshTunnel import ExposeNat
 
 
 class ShareThisDesktop:
@@ -89,4 +90,5 @@ class ShareThisDesktop:
         ffmpeg_thread.start()
         # returns immediately after the thread starts
         ''' Run ssh port forwarding '''
-        self.isConnected = True
+        e = ExposeNat()
+        e.run(1554)
