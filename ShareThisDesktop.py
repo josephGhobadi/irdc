@@ -32,6 +32,7 @@ class ShareThisDesktop(QThread):
         self.status = True
 
     def __del__(self):
+        # FIXME kill ssh and ffmpeg and command server
         ''' kill ssh port forwarding '''
 
         ''' kill ffmpeg and rtsp '''

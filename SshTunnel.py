@@ -91,6 +91,5 @@ class ExposeNat:
         self.ssh = ssh
 
     def __del__(self):
-        print('caller name:', inspect.stack()[1][3])
         if self.ssh is not None:
             del self.ssh
