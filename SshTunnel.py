@@ -1,10 +1,10 @@
 import os
 import random
-import signal
 import string
 import subprocess
 import multiprocessing
 import time
+import inspect
 
 file_name = "./" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=5)) + ".tmp"
 
@@ -43,7 +43,7 @@ class RunSSH:
     def exec(self):
         self.pipe = subprocess.Popen(
             ['./bin/unix/ssh', '-o', 'StrictHostKeyChecking=no',
-             '-F', '/dev/null', '-R', '0:localhost:'+self.port, 'serveo.net'],
+             '-F', '/dev/null', '-R', '0:localhost:'+str(self.port), 'serveo.net'],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False
         )
 
@@ -55,7 +55,7 @@ class RunSSH:
         self.out_thread.start()
 
     def __del__(self):
-        os.kill(self.pipe.pid, signal.SIGTERM)
+        self.pipe.kill()
         if self.err_thread is not None:
             self.err_thread.terminate()
 
@@ -64,9 +64,11 @@ class RunSSH:
 
 
 class ExposeNat:
-
     def __init__(self):
         self.host = "serveo.net"
+        self.exposed_port = None
+        self.exposed = False
+        self.ssh = None
 
     def run(self, port):
         is_connected = False
@@ -74,7 +76,6 @@ class ExposeNat:
         while not is_connected:
             retry_dial = 0
             while retry_dial < 5:
-                print("hi")
                 ssh = RunSSH(port)
                 ssh.exec()
                 time.sleep(5)
@@ -84,6 +85,12 @@ class ExposeNat:
                 del ssh
 
         f = open(file_name, "r")
-        print(f.read())
+        self.exposed_port = int(f.read())
         os.remove(file_name)
-        return ssh
+        self.exposed = True
+        self.ssh = ssh
+
+    def __del__(self):
+        print('caller name:', inspect.stack()[1][3])
+        if self.ssh is not None:
+            del self.ssh

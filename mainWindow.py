@@ -7,6 +7,9 @@ from ShareThisDesktop import ShareThisDesktop
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
+        self.share = None
+        self.share_thread = ShareThisDesktop()
+
         self.sizeHint = lambda: QSize(250, 100)
         self.move(100, 50)
         wid = QWidget(self)
@@ -38,12 +41,12 @@ class MainWindow(QMainWindow):
 
     def share_this_desktop(self):
         self.share_for_remote_btn.setText('Trying to share...')
-        share_status = ShareThisDesktop()
-        if share_status.isConnected:
-            self.share_for_remote_btn.setText(share_status.shareCode + ' stop sharing!')
-        else:
+        self.share_thread.start()
+        self.share = ShareThisDesktop()
+        self.share.lunch()
+        if self.share.status:
+            self.share_for_remote_btn.setText(self.share.shareCode + ' stop sharing!')
+        elif self.share.fail:
             alert = QMessageBox()
             alert.setText("Connection Failed")
             alert.exec_()
-
-

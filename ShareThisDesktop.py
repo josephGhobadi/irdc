@@ -1,94 +1,39 @@
-import threading
-import subprocess
-import platform
-import os
-import signal
-import screeninfo
-from time import sleep
 from SshTunnel import ExposeNat
+from FfmpegBinding import ffmpeg
+from RtspServerBindings import rtspServer
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
-class ShareThisDesktop:
+class ShareThisDesktop(QThread):
     def __init__(self):
-        self.isConnected = False
+        QThread.__init__(self)
+        self.signal = pyqtSignal('PyQt_PyObject')
+
+        self.status = False
+        self.fail = False
         self.shareCode = 'NaN!'
-        self.rtsp_process_id = 0
-        self.ffmpeg_process_id = 0
-        self.is_rtsp_server_started = False
-        self.is_already_killing_server = False
-
-        self.ffmpeg_command = ""
-        self.rtsp_command = ""
-
-        self.platform = platform.system()
-        self.current_file_address = os.path.dirname(os.path.abspath(__file__))
-
-        ''' make commands '''
-        self.make_ffmpeg_command()
-        self.make_rtsp_command()
-
-    def make_ffmpeg_command(self):
-        ffmpeg_arguments = ""
-        if self.platform == "Linux":
-            ffmpeg_arguments = " -video_size "
-            ffmpeg_arguments = ffmpeg_arguments + screeninfo.get_monitors()[0].width + "x"
-            ffmpeg_arguments = ffmpeg_arguments + screeninfo.get_monitors()[0].height
-            ffmpeg_arguments = ffmpeg_arguments + " -f x11grab -i :1 "
-        elif self.platform == "Windows":
-            ffmpeg_arguments = ffmpeg_arguments + " -f gdigrab "
-        ffmpeg_arguments = ffmpeg_arguments + " -framerate 15 "
-        ffmpeg_arguments = ffmpeg_arguments + " -rtsp_transport tcp -f rtsp rtsp://localhost:1554/test "
-
-        if self.platform == "Linux":
-            self.ffmpeg_command = self.current_file_address + "/bin/unix/ffmpeg" + ffmpeg_arguments
-        elif self.platform == "Windows":
-            self.ffmpeg_command = self.current_file_address + "\\bin\\windows\\ffmpeg.exe" + ffmpeg_arguments
-
-    def make_rtsp_command(self):
-        if self.platform == "Linux":
-            self.rtsp_command = self.current_file_address + "/bin/unix/rtspServer"
-        elif self.platform == "Windows":
-            self.rtsp_command = self.current_file_address + "\\bin\\unix\\rtspServer"
-
-    def kill_server(self):
-        if self.is_already_killing_server:
-            return
-
-        self.is_already_killing_server = True
-        ''' kill ssh port forwarding '''
-
-        ''' kill ffmpeg and rtsp '''
-        os.kill(self.rtsp_process_id, signal.SIGTERM)
-        os.kill(self.ffmpeg_process_id, signal.SIGTERM)
-        ''' kill command server '''
-
-    def lunch_ffmpeg(self):
-        while not self.is_rtsp_server_started:
-            sleep(0.5)
-        process = subprocess.Popen(self.ffmpeg_command)
-        self.ffmpeg_process_id = process.pid
-        process.wait()
-        self.kill_server()
-        return
-
-    def lunch_rtsp_server(self):
-        process = subprocess.Popen(self.rtsp_command)
-        self.is_rtsp_server_started = True
-        self.rtsp_process_id = process.pid
-        process.wait()
-        self.kill_server()
-        return
+        self.h = None
+        self.s = None
+        self._nat = None
+        self._command = None
 
     def lunch(self):
         ''' Run Command Server '''
 
         ''' Run Stream Server'''
-        rtsp_thread = threading.Thread(target=self.lunch_rtsp_server)
-        rtsp_thread.start()
-
-        ffmpeg_thread = threading.Thread(target=self.lunch_ffmpeg)
-        ffmpeg_thread.start()
-        # returns immediately after the thread starts
+        self.h = rtspServer()
+        self.s = ffmpeg(1554)
         ''' Run ssh port forwarding '''
-        e = ExposeNat()
-        e.run(1554)
+        self._nat = ExposeNat()
+        self._nat.run(1554)
+        self._command = ExposeNat()
+        self._command.run(1553)
+        self.shareCode = str(self._nat.exposed_port) + ":" + str(self._command.exposed_port)
+        self.status = True
+
+    def __del__(self):
+        ''' kill ssh port forwarding '''
+
+        ''' kill ffmpeg and rtsp '''
+
+        ''' kill command server '''
