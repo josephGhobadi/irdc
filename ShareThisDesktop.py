@@ -1,7 +1,10 @@
+import threading
+
 from SshTunnel import ExposeNat
 from FfmpegBinding import ffmpeg
 from RtspServerBindings import rtspServer
 from PyQt5.QtCore import QThread, pyqtSignal
+from WsCommandServer import *
 
 
 class ShareThisDesktop(QThread):
@@ -18,8 +21,6 @@ class ShareThisDesktop(QThread):
         self._command = None
 
     def lunch(self):
-        ''' Run Command Server '''
-
         ''' Run Stream Server'''
         self.h = rtspServer()
         self.s = ffmpeg(1554)
@@ -29,6 +30,11 @@ class ShareThisDesktop(QThread):
         self._command = ExposeNat()
         self._command.run(1553)
         self.shareCode = str(self._nat.exposed_port) + ":" + str(self._command.exposed_port)
+        ''' Run Command Server '''
+        ''''''
+        t = threading.Thread(target=run_ws_server)
+        t.start()
+
         self.status = True
 
     def __del__(self):
